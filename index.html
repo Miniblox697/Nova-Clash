@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NEON ROGUE</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">
+        <div class="logo">NEON ROGUE</div>
+        <div class="sub">Juego completo • Local • Canvas • Sin librerías</div>
+      </div>
+
+      <div class="hud">
+        <div class="pill">HP <b id="hp">0</b>/<span id="hpMax">0</span></div>
+        <div class="pill">Escudo <b id="shield">0</b></div>
+        <div class="pill">Oro <b id="gold">0</b></div>
+        <div class="pill">Nivel <b id="lvl">1</b></div>
+        <div class="pill">Puntos <b id="score">0</b></div>
+        <div class="pill">Combo <b id="combo">x1</b></div>
+        <div class="pill">Best <b id="best">0</b></div>
+        <button id="btnPause">Pausa</button>
+        <button id="btnRestart">Reiniciar</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <canvas id="game" width="960" height="540"></canvas>
+
+      <aside class="side">
+        <div class="box">
+          <div class="title">Controles</div>
+          <ul>
+            <li><b>WASD</b> / <b>Flechas</b>: moverte</li>
+            <li><b>Mouse</b>: apuntar</li>
+            <li><b>Click</b> o <b>Espacio</b>: disparar</li>
+            <li><b>Shift</b>: dash (impulso)</li>
+            <li><b>P</b>: pausa</li>
+          </ul>
+        </div>
+
+        <div class="box">
+          <div class="title">Mejoras (tienda entre niveles)</div>
+          <div class="shop">
+            <button class="buy" data-buy="hp">+20 HP (120)</button>
+            <button class="buy" data-buy="shield">+20 Escudo (140)</button>
+            <button class="buy" data-buy="spd">Velocidad + (160)</button>
+            <button class="buy" data-buy="dmg">Daño + (180)</button>
+            <button class="buy" data-buy="rof">Cadencia + (180)</button>
+            <button class="buy" data-buy="rad">Proyectil + (150)</button>
+            <button class="buy" data-buy="dash">Dash mejorado (220)</button>
+          </div>
+          <div class="note">La tienda solo se activa cuando completas un nivel.</div>
+        </div>
+
+        <div class="box">
+          <div class="title">Mensajes</div>
+          <div id="msg" class="msg">Tip: mueve + apunta con el mouse. Usa dash para escapar 😄</div>
+        </div>
+      </aside>
+    </main>
+
+    <footer class="foot">NEON ROGUE • Hecho para jugar en tu PC</footer>
+  </div>
+
+  <div id="overlay" class="overlay hidden" aria-hidden="true">
+    <div class="card">
+      <div id="ovTitle" class="big">PAUSA</div>
+      <div id="ovText" class="small">Presiona P o el botón Pausa para continuar</div>
+      <div class="row">
+        <button id="ovPrimary">Continuar</button>
+        <button id="ovRestart">Reiniciar</button>
+      </div>
+      <div id="ovTiny" class="tiny"></div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
