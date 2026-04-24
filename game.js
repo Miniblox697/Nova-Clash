@@ -89,6 +89,14 @@
     mouse.y = (e.clientY - r.top) * sy;
   });
   canvas.addEventListener("mousedown", ()=> mouse.down = true);
+  canvas.addEventListener("contextmenu", e => e.preventDefault());
+
+  addEventListener("contextmenu", (e)=>{
+    if(e.target === canvas){
+      e.preventDefault();
+      shootCharged();
+    }
+  });
   addEventListener("mouseup", ()=> mouse.down = false);
 
   function isDown(...ks){
@@ -143,6 +151,7 @@
     facing: 0,
 
     heat: 0,
+    chargedCd: 0,
     dashCd: 0,
     dashTime: 0,
   };
@@ -161,6 +170,7 @@
 
     bulletSpeed: 11.2,
     bulletLife: 900,
+    chargedCdMs: 1650,
 
     heatRecover: 0.00085, // per ms
     heatCost: 0.22,
@@ -308,6 +318,28 @@
 
     player.heat = clamp(player.heat + CFG.heatCost / state.up.rof, 0, 1.3);
     ring(player.p.x, player.p.y, 14, 0.5);
+  }
+
+  function shootCharged(){
+    if(state.between || player.chargedCd > 0 || player.heat > 1.05) return;
+
+    const aim = norm(sub(vec(mouse.x, mouse.y), player.p));
+    const b = {
+      p: add(player.p, mul(aim, player.r + 10)),
+      v: mul(aim, CFG.bulletSpeed * 0.9),
+      r: 10 * state.up.radius,
+      born: now(),
+      life: CFG.bulletLife + 420,
+      dmg: state.up.dmg * 3,
+      charged: true,
+      pierce: 4
+    };
+    bullets.push(b);
+    player.chargedCd = CFG.chargedCdMs / lerp(1, 1.35, clamp(state.up.rof-1,0,1.2)/1.2);
+    player.heat = clamp(player.heat + 0.62, 0, 1.3);
+    msg("Disparo cargado ⚡");
+    ring(player.p.x, player.p.y, 24, 0.65);
+    sparkle(player.p.x, player.p.y, 10);
   }
 
   function circleHit(ap,ar,bp,br){
@@ -527,6 +559,14 @@
 
       // collide player
       if(circleHit(e.p, e.r, player.p, player.r+2)){
+        if(player.dashTime > 0){
+          e.hp -= 3 + Math.floor(state.up.dash*1.5);
+          state.shake = Math.max(state.shake, 8);
+          sparkle(e.p.x, e.p.y, 12);
+          ring(e.p.x, e.p.y, e.r + 6, 0.5);
+          if(e.hp <= 0) killEnemy(e);
+          continue;
+        }
         hurtPlayer(e.kind === "tank" ? 3 : 2);
 
         // push away
@@ -545,9 +585,15 @@
         if(circleHit(b.p, b.r, e.p, e.r)){
           e.hp -= b.dmg;
           sparkle(e.p.x, e.p.y, 8);
-          used = true;
+          if(b.charged){
+            b.pierce--;
+            ring(e.p.x, e.p.y, e.r + 10, 0.4);
+            used = b.pierce <= 0;
+          } else {
+            used = true;
+          }
           if(e.hp <= 0) killEnemy(e);
-          break;
+          if(!b.charged || used) break;
         }
       }
 
@@ -563,6 +609,7 @@
   // ----- Player / Bullets / Drops / Particles -----
   function updatePlayer(dt){
     player.heat = clamp(player.heat - dt*CFG.heatRecover, 0, 1.3);
+    player.chargedCd = Math.max(0, player.chargedCd - dt);
     player.inv = Math.max(0, player.inv - dt);
 
     // dash
@@ -614,6 +661,7 @@
 
     // shoot
     if(mouse.down) shoot();
+    if(isDown("q")) shootCharged();
 
     // combo decay
     state.comboTimer = Math.max(0, state.comboTimer - dt);
@@ -741,7 +789,7 @@
 
   // ----- Drawing -----
   function drawBackground(){
-    // gradient + moving stars
+    // gradient + moving stars + neon grid
     const g = ctx.createLinearGradient(0,0,0,H);
     g.addColorStop(0,"rgba(120,170,255,0.10)");
     g.addColorStop(1,"rgba(255,190,120,0.06)");
@@ -757,6 +805,33 @@
       ctx.fillRect(x, y, 2, 2);
     }
     ctx.globalAlpha = 1;
+
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.strokeStyle = "rgba(120,255,170,0.75)";
+    ctx.lineWidth = 1;
+    const drift = (now()*0.02)%34;
+    for(let x = -34 + drift; x < W; x += 34){
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.stroke();
+    }
+    for(let y = 0; y < H; y += 34){
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    ctx.save();
+    const v = ctx.createRadialGradient(W*0.5, H*0.5, H*0.2, W*0.5, H*0.5, H*0.78);
+    v.addColorStop(0, "rgba(0,0,0,0)");
+    v.addColorStop(1, "rgba(3,6,14,0.50)");
+    ctx.fillStyle = v;
+    ctx.fillRect(0,0,W,H);
+    ctx.restore();
   }
 
   function drawArena(){
@@ -792,10 +867,16 @@
     ctx.rotate(player.facing);
 
     const rr = player.r;
-    ctx.fillStyle = "rgba(120,170,255,0.92)";
+    const bodyGrad = ctx.createLinearGradient(-rr, -rr, rr, rr);
+    bodyGrad.addColorStop(0, "rgba(150,205,255,0.95)");
+    bodyGrad.addColorStop(1, "rgba(85,125,255,0.92)");
+    ctx.fillStyle = bodyGrad;
     ctx.beginPath();
     ctx.roundRect(-rr, -rr, rr*2, rr*2, 10);
     ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.45)";
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
 
     // nose
     ctx.fillStyle = "rgba(255,255,255,0.85)";
@@ -829,15 +910,15 @@
 
   function drawBullets(){
     for(const b of bullets){
-      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.fillStyle = b.charged ? "rgba(255,240,130,0.96)" : "rgba(255,255,255,0.92)";
       ctx.beginPath();
       ctx.arc(b.p.x, b.p.y, b.r, 0, Math.PI*2);
       ctx.fill();
 
       ctx.globalAlpha = 0.25;
-      ctx.fillStyle = "rgba(120,255,170,0.95)";
+      ctx.fillStyle = b.charged ? "rgba(255,170,80,0.95)" : "rgba(120,255,170,0.95)";
       ctx.beginPath();
-      ctx.arc(b.p.x, b.p.y, b.r*1.6, 0, Math.PI*2);
+      ctx.arc(b.p.x, b.p.y, b.r*(b.charged ? 2 : 1.6), 0, Math.PI*2);
       ctx.fill();
       ctx.globalAlpha = 1;
     }
@@ -864,10 +945,16 @@
       if(e.kind === "tank") col = "rgba(255,90,200,0.86)";
 
       ctx.save();
-      ctx.fillStyle = col;
+      const g = ctx.createRadialGradient(e.p.x - e.r*0.5, e.p.y - e.r*0.6, 1, e.p.x, e.p.y, e.r*1.15);
+      g.addColorStop(0, "rgba(255,255,255,0.25)");
+      g.addColorStop(1, col);
+      ctx.fillStyle = g;
       ctx.beginPath();
       ctx.arc(e.p.x, e.p.y, e.r, 0, Math.PI*2);
       ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.18)";
+      ctx.lineWidth = 1.1;
+      ctx.stroke();
 
       // eye
       const d = norm(sub(player.p, e.p));
@@ -1045,6 +1132,7 @@
     player.v = vec(0,0);
     player.inv = 800;
     player.heat = 0;
+    player.chargedCd = 0;
     player.dashCd = 0;
     player.dashTime = 0;
 
@@ -1057,10 +1145,6 @@
 
     lastT = now();
   }
-
-  // shoot on click by default
-  // (mouse.down ya lo hace; esto solo evita selección rara)
-  canvas.addEventListener("contextmenu", e => e.preventDefault());
 
   // start
   syncUI();
